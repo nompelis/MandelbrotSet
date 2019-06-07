@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <unistd.h>
 
 //
 // we will work with our own complex numbers to make this portable
@@ -184,6 +185,48 @@ int inMandelbrot_DumpRegion( struct region_s *s, char filename[] )
 }
 
 
+long inMandelbrot_Iterate( complex_t c, long nstop )
+{
+   register complex_t tmp = { 0.0, 0.0 };
+   register long n = 0;
+
+   while( n < nstop ) {
+      double d;
+
+      tmp = inComplex_Multiplication( tmp, tmp );    // square 
+      tmp = inComplex_Addition( tmp, c );            // add constant
+      d = sqrt( tmp.re * tmp.re + tmp.im * tmp.im );
+      if( d > 2.0 ) return( n );    // return "steps to certain divergence"
+      ++n;
+   }
+
+   return( -1 );
+}
+
+
+//
+// a function to iterate the function to search for whether points are
+// possibly in the Mandelbrot set
+//
+int inMandelbrot_IterateRegion( struct region_s *s, long nstop )
+{
+   int i,j,n;
+
+
+   n = 0;
+   for(j=0;j<s->jm;++j) {
+      for(i=0;i<s->im;++i) {
+
+         s->it[n] = inMandelbrot_Iterate( s->points[n], nstop );
+
+         ++n;
+      }
+   }
+
+   return(0);
+
+
+}
 
 //
 // Driver
@@ -191,19 +234,25 @@ int inMandelbrot_DumpRegion( struct region_s *s, char filename[] )
 
 int main( int argc, char *argv[] )
 {
-   complex_t a = {-2.0,-2.0 };
-   complex_t b = { 2.0, 2.0 };
+// complex_t a = {-2.1,-2.1 };   // baseline
+// complex_t b = { 2.1, 2.1 };
+// complex_t a = { 0.1, 0.4 };   // interesting zoomed region
+// complex_t b = { 0.4, 0.7 };
+   complex_t a = { 0.24, 0.58 };   // interesting zoomed region
+   complex_t b = { 0.31, 0.63 };
    struct region_s reg;
    int iret;
 
    inComplex_OperatorTester();
 
-   iret = inMandelbrot_MakeRegion( &reg, a, b, 100, 100 );
+   iret = inMandelbrot_MakeRegion( &reg, a, b, 1000, 1001 );
    if( iret != 0 ) {
       printf("Error creating the region: %d \n",iret);
    } else {
       printf("Created a %d x %d grid \n",reg.im, reg.jm );
    }
+
+   inMandelbrot_IterateRegion( &reg, 10000 );
 
    inMandelbrot_DumpRegion( &reg, "grid.dat" );
 
